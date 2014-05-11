@@ -47,6 +47,13 @@ R4 = R1;
 R = 1e5/N : 1e5/N : 1e5;
 
 % Computation of the operating points of the circuit
+% Initialization of the voltages arrays:
+V0 = zeros(length(R1), length(R));
+V1 = zeros(length(R1), length(R));
+V2 = zeros(length(R1), length(R));
+V3 = zeros(length(R1), length(R));
+V4 = zeros(length(R1), length(R));
+
 for i = 1:length(R1)
     
     for j = 1:length(R)
@@ -83,13 +90,16 @@ for i = 1:length(R1)
         V3(i,j) = (R(j) + R4(i)) * I4;
         V4(i,j) =  R(j) * I4;
         V2(i,j) =  R(j) * (V1(i,j)*R3(i) + V3(i,j)*R2(i)) ...
-            / (R2(i)*R3(i) + R(j)*R2(i) + R(j) + R3(i));
+            / (R2(i)*R3(i) + R(j)*R2(i) + R(j)*R3(i));
     end
     
 end
 
 % Plot of the output voltages and computation of maximum dynamics points:
 figure;
+
+% Choose a ratio that zoom or dezoom the plots
+ratio = .05;
 
 % V0
 subplot(3, 1, 1);
@@ -101,6 +111,10 @@ line([R(ind), R(ind)], ...
     [min(V0(1,ind), V0(2,ind)), max(V0(1,ind), V0(2,ind))], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
 hold off;
+
+xlim([R(1), R(length(R))])
+ylim([(1-ratio)*min(min(V0(1,:)), min(V0(2,:))), (1+ratio)*max(max(V0(1,:)), max(V0(2,:)))]);
+
 fprintf('V0 - Max dynamic for R = %i\n', R(ind));
 
 
@@ -114,6 +128,10 @@ line([R(ind), R(ind)], ...
     [min(V1(1,ind), V1(2,ind)), max(V1(1,ind), V1(2,ind))], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
 hold off;
+
+xlim([R(1), R(length(R))])
+ylim([(1-ratio)*min(min(V1(1,:)), min(V1(2,:))), (1+ratio)*max(max(V1(1,:)), max(V1(2,:)))]);
+
 fprintf('V1 - Max dynamic for R = %i\n', R(ind));
 
 
@@ -127,4 +145,16 @@ line([R(ind), R(ind)], ...
     [min(V2(1,ind), V2(2,ind)), max(V2(1,ind), V2(2,ind))], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
 hold off;
+
+xlim([R(1), R(length(R))])
+ylim([(1-ratio)*min(min(V2(1,:)), min(V2(2,:))), (1+ratio)*max(max(V2(1,:)), max(V2(2,:)))]);
+
 fprintf('V2 - Max dynamic for R = %i\n', R(ind));
+fprintf('------------------------------\n');
+
+% Computes the best R value to have the max total dynamic in the circuit
+% The '2*' factor in front of V0 and V1 is there to take into account the
+% symmetry of V0 and V1 with V4 and V3 respectively.
+[~, ind] = max( 2*abs(V0(1,:) - V0(2,:)) + 2*abs(V1(1,:) - V1(2,:)) ...
+    + abs(V2(1,:) - V2(2,:)) );
+fprintf('---> Max dynamic of the circuit for R = %i\n', R(ind));
