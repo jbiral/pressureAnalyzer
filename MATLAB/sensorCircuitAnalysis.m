@@ -27,7 +27,7 @@ N = 10000;
 
 % Power Voltage of the circuit:
 % Set to 1 to normalize the value computed during the analysis.
-Vd = 3.3;
+Vd = 1;
 
 % Boundaries of the variable resistor:
 RvL = 8e3;
@@ -107,6 +107,8 @@ fprintf(strcat('Pressure Sensor - DC Analysis:\n', ...
 % ======================== %
 
 % Plot of the output voltages and computation of maximum dynamics points:
+set(0,'DefaultAxesFontName', 'Latin Modern')
+set(0,'DefaultAxesFontSize', 10)
 figure;
 
 % Choose a ratio that zoom or dezoom the plots
@@ -123,9 +125,13 @@ line([R(ind), R(ind)], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
 hold off;
 
-xlim([R(1), R(length(R))])
+xlim([R(1), R(length(R))]);
 ylim([(1-ratio)*min(min(V0(1,:)), min(V0(2,:))), ...
     (1+ratio)*max(max(V0(1,:)), max(V0(2,:)))]);
+
+title('V0 over R', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('R (Ohm)');
+ylabel('Magnitude');
 
 fprintf('V0 - Max dynamic for R = %i\n', R(ind));
 
@@ -141,9 +147,13 @@ line([R(ind), R(ind)], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
 hold off;
 
-xlim([R(1), R(length(R))])
+xlim([R(1), R(length(R))]);
 ylim([(1-ratio)*min(min(V1(1,:)), min(V1(2,:))), ...
     (1+ratio)*max(max(V1(1,:)), max(V1(2,:)))]);
+
+title('V1 over R', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('R (Ohm)');
+ylabel('Magnitude');
 
 fprintf('V1 - Ma dynamic for R = %i\n', R(ind));
 
@@ -159,9 +169,13 @@ line([R(ind), R(ind)], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
 hold off;
 
-xlim([R(1), R(length(R))])
+xlim([R(1), R(length(R))]);
 ylim([(1-ratio)*min(min(V2(1,:)), min(V2(2,:))), ...
     (1+ratio)*max(max(V2(1,:)), max(V2(2,:)))]);
+
+title('V2 over R', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('R (Ohm)');
+ylabel('Magnitude');
 
 fprintf('V2 - Max dynamic for R = %i\n', R(ind));
 fprintf('------------------------------\n');
@@ -173,9 +187,25 @@ fprintf('------------------------------\n');
 V0norm = abs( (V0(1,:) - V0(2,:)) / (max(V0(1,:)) - min(V0(2,:))) );
 V1norm = abs( (V1(1,:) - V1(2,:)) / (max(V1(2,:)) - min(V1(1,:))) );
 V2norm = abs( (V2(1,:) - V2(2,:)) / (max(V2(1,:)) - min(V2(2,:))) );
+Vw     = 2 * V0norm + 2 * V1norm + V2norm;
+
+% Plot the voltages weighted sum
+figure;
+plot(R, Vw, '-r');
+[~, ind] = max( Vw );
+hold on;
+plot(R(ind), Vw(ind), 'o', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
+line([R(ind), R(ind)], [min(Vw), Vw(ind)], ...
+    'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
+
+xlim([R(1), R(length(R))]);
+ylim([(1-ratio)*min(Vw), (1+ratio)*max(Vw)]);
+
+title('Vw over R', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('R (Ohm)');
+ylabel('Magnitude');
 
 % Computation of the best R:
-[~, ind] = max( 2*V0norm + 2*V1norm + V2norm );
 fprintf('---> Max dynamic of the circuit for R = %i\n', R(ind));
 
 % ========================= %
@@ -183,4 +213,11 @@ fprintf('---> Max dynamic of the circuit for R = %i\n', R(ind));
 % ========================= %
 
 clear I1 I4 Idt Ita Itb N R R1 R2 R3 R4 Rab Rac Rat Rbc Rbt Rdt Rp1 Rp2 ...
-    Rtot RvH RvL V0 V0norm V1 V1norm V2 V2norm V3 V4 Vd i ind j ratio;
+    Rtot RvH RvL V0 V0norm V1 V1norm V2 V2norm V3 V4 Vd Vw i ind j ratio;
+
+%% AC Analysis of the sensor circuit
+%  The first part of the AC Analysis is to determine the impedance matrix
+%  of each two-port network of the circuit. Due to its symmetry, there is
+%  two two-port networks to consider: the first one is the low-pass filter
+%  part of the sensor and the second one is the low-pass at the input of
+%  the ADC converter.
