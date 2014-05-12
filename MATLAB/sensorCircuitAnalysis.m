@@ -46,13 +46,16 @@ R4 = R1;
 % The sweep is done to calculte the R value which gives the best dynamic
 R = 1e5/N : 1e5/N : 1e5;
 
-% Computation of the operating points of the circuit
 % Initialization of the voltages arrays:
 V0 = zeros(length(R1), length(R));
 V1 = zeros(length(R1), length(R));
 V2 = zeros(length(R1), length(R));
 V3 = zeros(length(R1), length(R));
 V4 = zeros(length(R1), length(R));
+
+% =============================== %
+% Operating points of the circuit %
+% =============================== %
 
 for i = 1:length(R1)
     
@@ -95,6 +98,14 @@ for i = 1:length(R1)
     
 end
 
+% Initialization of the text output:
+fprintf(strcat('Pressure Sensor - DC Analysis:\n', ...
+    '==============================\n'));
+
+% ======================== %
+% Maximization of dynamics %
+% ======================== %
+
 % Plot of the output voltages and computation of maximum dynamics points:
 figure;
 
@@ -113,7 +124,8 @@ line([R(ind), R(ind)], ...
 hold off;
 
 xlim([R(1), R(length(R))])
-ylim([(1-ratio)*min(min(V0(1,:)), min(V0(2,:))), (1+ratio)*max(max(V0(1,:)), max(V0(2,:)))]);
+ylim([(1-ratio)*min(min(V0(1,:)), min(V0(2,:))), ...
+    (1+ratio)*max(max(V0(1,:)), max(V0(2,:)))]);
 
 fprintf('V0 - Max dynamic for R = %i\n', R(ind));
 
@@ -130,9 +142,10 @@ line([R(ind), R(ind)], ...
 hold off;
 
 xlim([R(1), R(length(R))])
-ylim([(1-ratio)*min(min(V1(1,:)), min(V1(2,:))), (1+ratio)*max(max(V1(1,:)), max(V1(2,:)))]);
+ylim([(1-ratio)*min(min(V1(1,:)), min(V1(2,:))), ...
+    (1+ratio)*max(max(V1(1,:)), max(V1(2,:)))]);
 
-fprintf('V1 - Max dynamic for R = %i\n', R(ind));
+fprintf('V1 - Ma dynamic for R = %i\n', R(ind));
 
 
 % V2
@@ -147,7 +160,8 @@ line([R(ind), R(ind)], ...
 hold off;
 
 xlim([R(1), R(length(R))])
-ylim([(1-ratio)*min(min(V2(1,:)), min(V2(2,:))), (1+ratio)*max(max(V2(1,:)), max(V2(2,:)))]);
+ylim([(1-ratio)*min(min(V2(1,:)), min(V2(2,:))), ...
+    (1+ratio)*max(max(V2(1,:)), max(V2(2,:)))]);
 
 fprintf('V2 - Max dynamic for R = %i\n', R(ind));
 fprintf('------------------------------\n');
@@ -155,6 +169,18 @@ fprintf('------------------------------\n');
 % Computes the best R value to have the max total dynamic in the circuit
 % The '2*' factor in front of V0 and V1 is there to take into account the
 % symmetry of V0 and V1 with V4 and V3 respectively.
-[~, ind] = max( 2*abs(V0(1,:) - V0(2,:)) + 2*abs(V1(1,:) - V1(2,:)) ...
-    + abs(V2(1,:) - V2(2,:)) );
+% Normalization of each outputs:
+V0norm = abs( (V0(1,:) - V0(2,:)) / (max(V0(1,:)) - min(V0(2,:))) );
+V1norm = abs( (V1(1,:) - V1(2,:)) / (max(V1(2,:)) - min(V1(1,:))) );
+V2norm = abs( (V2(1,:) - V2(2,:)) / (max(V2(1,:)) - min(V2(2,:))) );
+
+% Computation of the best R:
+[~, ind] = max( 2*V0norm + 2*V1norm + V2norm );
 fprintf('---> Max dynamic of the circuit for R = %i\n', R(ind));
+
+% ========================= %
+% Clearing of the workspace %
+% ========================= %
+
+clear I1 I4 Idt Ita Itb N R R1 R2 R3 R4 Rab Rac Rat Rbc Rbt Rdt Rp1 Rp2 ...
+    Rtot RvH RvL V0 V0norm V1 V1norm V2 V2norm V3 V4 Vd i ind j ratio;
