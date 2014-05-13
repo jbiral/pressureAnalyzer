@@ -221,3 +221,75 @@ clear I1 I4 Idt Ita Itb N R R1 R2 R3 R4 Rab Rac Rat Rbc Rbt Rdt Rp1 Rp2 ...
 %  two two-port networks to consider: the first one is the low-pass filter
 %  part of the sensor and the second one is the low-pass at the input of
 %  the ADC converter.
+
+% Clear the workspace of unwated elements
+close all;
+clear all;
+clc;
+
+% =========================== %
+% Initialization of variables %
+% =========================== %
+
+% Number of points to compute:
+N = 10000;
+
+% Boundaries of the variable resistor:
+RvL = 8e3;
+RvH = 5e6;
+
+% Variable resistor array:
+% Only the minimum and the maximum values are considered here as the aim is
+% to maximize the dynamic of the circuit. Intermediate values are not
+% useful for this purpose.
+R1 = [RvL, RvH];
+
+% Resistor:
+% The ideal value that maximizes dynamics can be determined with the DC
+% analysis.
+R = 63230;
+
+% Capacitor:
+% The capacitor need to be chosen to ensure a minimum cutoff frequency of
+% 500 Hz. As the boundary if Rv tends to infinite is the cutoff frequency
+% F= 1/(2*pi*RC), C is determined in this way.
+Fs = 1000;
+C = 1/(2*pi*R*Fs/2);
+
+% Elements of the circuit of the ADC input:
+% As it is impossible to know the exact capacitor and resistor at the input
+% of the ADC, the worst case is taken into account in these computations.
+% The following values correspond to [Typical value, Max value], regarding
+% to the ADC datasheet, in 10-bits mode.
+% Ra = [2e3, 5e3];
+% Ca = [4e-12, 5e-12];
+
+Ra = 2e3;
+Ca = 4e-12;
+
+% =================== %
+% Transmission Matrix %
+% =================== %
+
+% In this section, the two different transmission matrix of the circuit are
+% implemented for further calculation. The transmission matrix is useful to
+% compute the transfer function of two-ports networks in cascade.
+
+for i = 1:length(R1)
+    
+    % Transmission matrix of the low-pass two-ports network of the pressure
+    % sensor:
+    Ts = [
+            tf([R*R1(i)*C, R+R1(i)], R),    tf([R*R1(i)*C, R1(i)], [R*C, 1]);
+            tf([R*C, R+R1(i)], R),          tf(1)
+         ];
+
+    % Transmission matrix of the input of the ADC converter
+    Ta = [
+            tf([Ra*Ca, 1], 1),    tf(Ra);
+            tf([Ca, 0], 1),       tf(1)
+         ];
+   
+end
+
+
