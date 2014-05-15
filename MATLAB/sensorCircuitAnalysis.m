@@ -25,22 +25,25 @@ clc;
 % Number of points to compute:
 N = 10000;
 
+% ADC resolution
+nbits = 10;
+
 % Power Voltage of the circuit:
 % Set to 1 to normalize the value computed during the analysis.
 Vd = 1;
 
 % Boundaries of the variable resistor:
-RvL = 8e3;
-RvH = 5e6;
+RvL = 20e3;
+RvH = 1e5;
 
 % Variable resistor array:
 % Only the minimum and the maximum values are considered here as the aim is
 % to maximize the dynamic of the circuit. Intermediate values are not
 % useful for this purpose.
 R1 = [RvL, RvH];
-R2 = R1;
-R3 = R1;
-R4 = R1;
+R2 = [RvL, RvH];
+R3 = [RvL, RvH];
+R4 = [RvL, RvH];
 
 % Resistor sweep:
 % The sweep is done to calculte the R value which gives the best dynamic
@@ -101,6 +104,10 @@ end
 % Initialization of the text output:
 fprintf(strcat('Pressure Sensor - DC Analysis:\n', ...
     '==============================\n'));
+fprintf('Parameters:\n-----------\nRvLow = %i, RvHigh = %i, Vd = %i\n',...
+    RvL, RvH, Vd);
+
+fprintf('\nAnalysis:\n---------\n');
 
 % ======================== %
 % Maximization of dynamics %
@@ -119,7 +126,7 @@ subplot(3, 1, 1);
 plot(R, V0(1,:), '-r');
 hold on;
 plot(R, V0(2,:), '-b');
-[~, ind] = max( abs(V0(1,:) - V0(2,:)) );
+[resolution, ind] = max( abs(V0(1,:) - V0(2,:)) );
 line([R(ind), R(ind)], ...
     [min(V0(1,ind), V0(2,ind)), max(V0(1,ind), V0(2,ind))], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
@@ -133,29 +140,32 @@ title('V0 over R', 'FontSize', 12, 'FontWeight', 'bold');
 xlabel('R (Ohm)');
 ylabel('Magnitude');
 
-fprintf('V0 - Max dynamic for R = %i\n', R(ind));
+fprintf('V0  - Max dynamic for R = %i and resolution of %i\n', R(ind), ...
+    floor(resolution*2^nbits/Vd));
 
 
-% V1
+% V1 - Vd
+Vd1 = Vd - V1;
 subplot(3, 1, 2);
-plot(R, V1(1,:), '-r');
+plot(R, Vd1(1,:), '-r');
 hold on;
-plot(R, V1(2,:), '-b');
-[~, ind] = max( abs(V1(1,:) - V1(2,:)) );
+plot(R, Vd1(2,:), '-b');
+[resolution, ind] = max( abs(Vd1(1,:) - Vd1(2,:)) );
 line([R(ind), R(ind)], ...
-    [min(V1(1,ind), V1(2,ind)), max(V1(1,ind), V1(2,ind))], ...
+    [min(Vd1(1,ind), Vd1(2,ind)), max(Vd1(1,ind), Vd1(2,ind))], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
 hold off;
 
 xlim([R(1), R(length(R))]);
-ylim([(1-ratio)*min(min(V1(1,:)), min(V1(2,:))), ...
-    (1+ratio)*max(max(V1(1,:)), max(V1(2,:)))]);
+ylim([(1-ratio)*min(min(Vd1(1,:)), min(Vd1(2,:))), ...
+    (1+ratio)*max(max(Vd1(1,:)), max(Vd1(2,:)))]);
 
-title('V1 over R', 'FontSize', 12, 'FontWeight', 'bold');
+title('Vd1 over R', 'FontSize', 12, 'FontWeight', 'bold');
 xlabel('R (Ohm)');
 ylabel('Magnitude');
 
-fprintf('V1 - Ma dynamic for R = %i\n', R(ind));
+fprintf('Vd1 - Max dynamic for R = %i and resolution of %i\n', R(ind), ...
+    floor(resolution*2^nbits/Vd));
 
 
 % V2
@@ -163,7 +173,7 @@ subplot(3, 1, 3);
 plot(R, V2(1,:), '-r');
 hold on;
 plot(R, V2(2,:), '-b');
-[~, ind] = max( abs(V2(1,:) - V2(2,:)) );
+[resolution, ind] = max( abs(V2(1,:) - V2(2,:)) );
 line([R(ind), R(ind)], ...
     [min(V2(1,ind), V2(2,ind)), max(V2(1,ind), V2(2,ind))], ...
     'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
@@ -177,17 +187,72 @@ title('V2 over R', 'FontSize', 12, 'FontWeight', 'bold');
 xlabel('R (Ohm)');
 ylabel('Magnitude');
 
-fprintf('V2 - Max dynamic for R = %i\n', R(ind));
+fprintf('V2  - Max dynamic for R = %i and resolution of %i\n', R(ind), ...
+    floor(resolution*2^nbits/Vd));
+
+
+% Best R that maximizes the voltage difference between the variable
+% resistors:
+% V1 - V0
+V10 = V1 - V0;
+figure;
+subplot(2, 1, 1);
+plot(R, V10(1,:), '-r');
+hold on;
+plot(R, V10(2,:), '-b');
+[resolution, ind] = max( abs(V10(1,:) - V10(2,:)) );
+line([R(ind), R(ind)], ...
+    [min(V10(1,ind), V10(2,ind)), max(V10(1,ind), V10(2,ind))], ...
+    'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
+hold off;
+
+xlim([R(1), R(length(R))]);
+ylim([(1-ratio)*min(min(V10(1,:)), min(V10(2,:))), ...
+    (1+ratio)*max(max(V10(1,:)), max(V10(2,:)))]);
+
+title('V10 over R', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('R (Ohm)');
+ylabel('Magnitude');
+
+fprintf('V10 - Max dynamic for R = %i and resolution of %i\n', R(ind), ...
+    floor(resolution*2^nbits/Vd));
+
+% V1 - V0
+V12 = V1 - V2;
+subplot(2, 1, 2);
+plot(R, V12(1,:), '-r');
+hold on;
+plot(R, V12(2,:), '-b');
+[resolution, ind] = max( abs(V12(1,:) - V12(2,:)) );
+line([R(ind), R(ind)], ...
+    [min(V12(1,ind), V12(2,ind)), max(V12(1,ind), V12(2,ind))], ...
+    'LineStyle', '-.', 'LineWidth', 2, 'Color', [0.4, 0.8, 0.4]);
+hold off;
+
+xlim([R(1), R(length(R))]);
+ylim([(1-ratio)*min(min(V12(1,:)), min(V12(2,:))), ...
+    (1+ratio)*max(max(V12(1,:)), max(V12(2,:)))]);
+
+title('V12 over R', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('R (Ohm)');
+ylabel('Magnitude');
+
+fprintf('V12 - Max dynamic for R = %i and resolution of %i\n', R(ind), ...
+    floor(resolution*2^nbits/Vd));
+
+
 fprintf('------------------------------\n');
 
 % Computes the best R value to have the max total dynamic in the circuit
 % The '2*' factor in front of V0 and V1 is there to take into account the
 % symmetry of V0 and V1 with V4 and V3 respectively.
 % Normalization of each outputs:
-V0norm = abs( (V0(1,:) - V0(2,:)) / (max(V0(1,:)) - min(V0(2,:))) );
-V1norm = abs( (V1(1,:) - V1(2,:)) / (max(V1(2,:)) - min(V1(1,:))) );
-V2norm = abs( (V2(1,:) - V2(2,:)) / (max(V2(1,:)) - min(V2(2,:))) );
-Vw     = 2 * V0norm + 2 * V1norm + V2norm;
+V0norm  = abs( (V0(1,:) - V0(2,:)) / (max(V0(1,:)) - min(V0(2,:))) );
+Vd1norm = abs( (Vd1(1,:) - Vd1(2,:)) / (max(Vd1(1,:)) - min(Vd1(2,:))) );
+V2norm  = abs( (V2(1,:) - V2(2,:)) / (max(V2(1,:)) - min(V2(2,:))) );
+V10norm = abs( (V10(1,:) - V10(2,:)) / (max(V10(1,:)) - min(V10(2,:))) );
+V12norm = abs( (V12(1,:) - V12(2,:)) / (max(V12(1,:)) - min(V12(2,:))) );
+Vw      = 2 * V0norm + 2 * Vd1norm + V2norm + 2 * V10norm + 2 * V12norm;
 
 % Plot the voltages weighted sum
 figure;
@@ -236,7 +301,7 @@ N = 10000;
 
 % Boundaries of the variable resistor:
 RvL = 8e3;
-RvH = 5e6;
+RvH = 1e5;
 
 % Variable resistor array:
 % Only the minimum and the maximum values are considered here as the aim is
@@ -247,7 +312,7 @@ R1 = [RvL, RvH];
 % Resistor:
 % The ideal value that maximizes dynamics can be determined with the DC
 % analysis.
-R = 63230;
+R = 10000;
 
 % Capacitor:
 % The capacitor need to be chosen to ensure a minimum cutoff frequency of
@@ -277,6 +342,7 @@ Ca = 4e-12;
 
 for i = 1:length(R1)
     
+    clear Ts Ta;
     % Transmission matrix of the low-pass two-ports network of the pressure
     % sensor:
     Ts = [
@@ -289,7 +355,64 @@ for i = 1:length(R1)
             tf([Ra*Ca, 1], 1),    tf(Ra);
             tf([Ca, 0], 1),       tf(1)
          ];
+     
+    % ================== %
+    % Transfer Functions %
+    % ================== %
+
+    % If a output sees a variation in an adjacent resistor
+    % Transmission Matrix = LP*ADC
+
+    % If a output sees a variation in non adjacent resistor
+    % Transmission Matrix = LP*LP*ADC
+    % And so on.
+    clear Tm;
+    Tm = Ts;
+
+    % Once the transmission matrix have been found, the transfer function of
+    % each case can easily be computed.
+    clear Tf;
+    Tf = [tf(1), tf(1), tf(1), tf(1)];
+
+    for j = 1:max(size(Tf))
+
+        Tf(j) = 1 / (Tm(1,1) );
+        %minreal(Tf(j));
+        fprintf('Bandwidth through %i low-pass filters for Rv = %i is %i\n', j, R1(i), bandwidth(Tf(j)));
+        Tm = Tm*Ts;
+
+    end
    
 end
 
+%% Zout
+% Number of points to compute:
+N = 10000;
 
+
+% Boundaries of the variable resistor:
+RvL = 8e3;
+RvH = 1e5;
+
+% Variable resistor array:
+% Only the minimum and the maximum values are considered here as the aim is
+% to maximize the dynamic of the circuit. Intermediate values are not
+% useful for this purpose.
+R1 = [RvL, RvH];
+R2 = R1;
+R3 = R1;
+R4 = R1;
+
+% Resistor sweep:
+% The sweep is done to calculte the R value which gives the best dynamic
+R = 1e5/N : 1e5/N : 1e5;
+
+for i=1:length(R1)
+    for j = 1:length(R)
+        Rth(i,j) = R(j) - R(j)^2 * ( R(j)+ 1/(1/(R1(i)+R(j)) + 1/R2(i)));
+    end
+end
+
+plot(R, Rth(1,:), 'r');
+hold on;
+plot(R, Rth(2,:), 'b');
