@@ -18,6 +18,8 @@ Here's the list of what will be done soon:
 	- [ ] Find the best RC filter
 - [ ] Teensy 3.1
 	- [ ] Sampling at 100 kHz (Interval Timer)
+	- [ ] RF frequencies > MHz --> filter
+	- [ ] Circuit is not LTI --> need to take a capacitor high enough to avoid filtering useful frequencies
 	- [ ] Filter frequencies above 500 Hz (FIR or IIR?)
 	- [ ] Median filter?
 	- [ ] Downsample at 500 Hz before sending through serial (via OSC)
