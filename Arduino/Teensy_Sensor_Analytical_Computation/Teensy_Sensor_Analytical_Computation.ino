@@ -89,6 +89,7 @@ void setup()
 
 void loop()                     
 {
+  isADCReady = false;
   // Initialization of variables
   OSCBundle bndl;
   uint64_t timetag[NUMSENSORS+1];
@@ -149,7 +150,6 @@ void loop()
       SLIPSerial.endPacket(); // mark the end of the OSC Packet
       bndl.empty(); // empty the bundle to free room for a new one
       
-      isADCReady = false;
   }
   
 

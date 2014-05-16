@@ -35,31 +35,35 @@ public:
 		gain = newGain;
 	}
 	
-	void setCoefficients(const int32_t *newCoefs) {
+	void setCoefficients(const int16_t *newCoefs) {
 		for (int i=0; i<filterTaps; i++) {      
 			coef[i] = newCoefs[i];
 		}
 	}
 	
-	void setCoefficient(int idx, float newCoef) { 
+	void setCoefficient(int idx, int16_t newCoef) { 
 		coef[idx] = newCoef; 
 	}
 	
 	float process(int16_t in) {
-		int32_t out = 0;                        // out is the return variable. It is set to 0 every time we call the filter!
+                // Input and coefficients are coded on 16 bits. To avoid overflow in the multiplication process, the output must be coded on 32 bits.
+		int32_t out = 0;
+                
+                // Store the input of the routine (contents of the 'in' variable) in the array at the current pointer position
+		values[k] = in;
 
-		values[k] = in;                        // store the input of the routine (contents of the 'in' variable) in the array at the current pointer position
-
-		for (int i=0; i<filterTaps; i++) {                              // we step through the array
-			out += (int32_t) coef[i] * (int32_t) values[(i + k) % filterTaps];      // ... and add and multiply each value to accumulate the output
-																					//  (i + k) % filterTaps creates a cyclic way of getting through the array
+		for (int i=0; i<filterTaps; i++)
+                {
+			out += (int32_t) coef[i] * (int32_t) values[(i + k) % filterTaps];
 		}
-
-		out /= gain;                        // We need to scale the output (unless the coefficients provide unity gain in the passband)
+                
+                // Shift by 15 bits to the right (16 bits signed) to rescale the output
+		out = out >> 15;
 
 		k = (k+1) % filterTaps;            // k is increased and wraps around the filterTaps, so next time we will overwrite the oldest saved sample in the array
 
 		return out;                              // we send the output value back to whoever called the routine
 	}
 };
+
 #endif
