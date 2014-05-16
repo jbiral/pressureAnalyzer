@@ -45,7 +45,7 @@ public:
 		coef[idx] = newCoef; 
 	}
 	
-	float process(int16_t in) {
+	int16_t process(int16_t in) {
                 // Input and coefficients are coded on 16 bits. To avoid overflow in the multiplication process, the output must be coded on 32 bits.
 		int32_t out = 0;
                 
@@ -62,7 +62,7 @@ public:
 
 		k = (k+1) % filterTaps;            // k is increased and wraps around the filterTaps, so next time we will overwrite the oldest saved sample in the array
 
-		return out;                              // we send the output value back to whoever called the routine
+		return ((int16_t) out);                              // we send the output value back to whoever called the routine
 	}
 };
 
