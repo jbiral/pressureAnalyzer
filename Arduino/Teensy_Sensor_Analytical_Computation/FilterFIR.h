@@ -9,7 +9,7 @@ class FIR {
 private:
 	int16_t values[filterTaps];	
 	int16_t coef[filterTaps];
-	int gain; // set to 1 and input unity to see what this needs to be	
+	float gain; // set to 1 and input unity to see what this needs to be	
 	int k; // k stores the index of the current array read to create a circular memory through the array
 
 public:
@@ -31,7 +31,7 @@ public:
 		setCoefficients(newCoefs);
 	}
 
-	void setGain(int newGain) {
+	void setGain(float newGain) {
 		gain = newGain;
 	}
 	
@@ -45,7 +45,7 @@ public:
 		coef[idx] = newCoef; 
 	}
 	
-	float process(int16_t in) {
+	int16_t process(int16_t in) {
                 // Input and coefficients are coded on 16 bits. To avoid overflow in the multiplication process, the output must be coded on 32 bits.
 		int32_t out = 0;
                 
@@ -59,10 +59,11 @@ public:
                 
                 // Shift by 15 bits to the right (16 bits signed) to rescale the output
 		out = out >> 15;
+                out = (int16_t) (gain * (float) out);
 
 		k = (k+1) % filterTaps;            // k is increased and wraps around the filterTaps, so next time we will overwrite the oldest saved sample in the array
 
-		return out;                              // we send the output value back to whoever called the routine
+		return ((int16_t) out);                              // we send the output value back to whoever called the routine
 	}
 };
 

@@ -1,6 +1,8 @@
 #include <OSCBundle.h>
 #include <OSCTiming.h>
 #include <IntervalTimer.h>
+#include <OSCBundle.h>
+#include <OSCTiming.h>
 #include "FilterFIR.h"
 #include "fdacoefs.h"
 
@@ -17,35 +19,75 @@ SLIPEncodedUSBSerial SLIPSerial( thisBoardsSerialUSB );
 // Declaration of constants
 const int NUMSENSORS = 4;
 const int ADCRESOLUTION = 10;
-const int R = 7830;
+const int R = pow(2,7);
+long oldT;
 
 // Timer variables
-IntervalTimer timer;
+IntervalTimer timerADC;
+IntervalTimer timerSerial;
 volatile boolean isADCReady = false;
 
 // Global variables
 int dcComponent[NUMSENSORS + 1];
+int counter = 0;
+int adcSample = 0;
+int16_t timetagSent;
+uint16_t adcValue[NUMSENSORS+1];
+int16_t temp;
+FIR<BL> fir[NUMSENSORS + 1];
 
 // Interrupt timer function
 void timerCallback() {
-  isADCReady = true;
+  if(counter != 0)
+  {
+    temp = fir[adcSample].process((uint16_t)analogRead(adcSample));      
+  }
+  else
+  {
+    adcValue[adcSample] = fir[adcSample].process((uint16_t)analogRead(adcSample));     
+  }
+  
+
+  adcSample = (adcSample + 1)%(NUMSENSORS+1);
+  
+  if(adcSample == 0)
+  {
+    counter = (counter + 1)%10;
+    
+    if(counter == 0)
+    {
+      timetagSent = micros() - oldT;
+      oldT = micros();
+      isADCReady = true;
+    }
+    
+  }
 }
 
-FIR<BL> fir;
+
 
 void setup()
 {                
   //begin SLIPSerial just like Serial
-    SLIPSerial.begin(38400);   // set this as high as you can reliably run on your platform
-#if ARDUINO >= 100
-    while(!Serial)
-      ;   // Leonardo bug
-#endif
+  SLIPSerial.begin(38400);   // set this as high as you can reliably run on your platform
+  #if ARDUINO >= 100
+      while(!Serial)
+        ;   // Leonardo bug
+  #endif
   
   // ADC Configuration
   analogReadRes(ADCRESOLUTION);
   analogReadAveraging(1); // For smoothing the input --> 4 by default
   analogReference(DEFAULT);
+  
+  //Filter
+  
+  for(int i =0; i<NUMSENSORS+1;i++)
+  {
+    fir[i].setCoefficients(B);
+    fir[i].setGain(1024.0/1111.0);
+  }
+  
   
   // Calibration
   analogRead(0);
@@ -56,11 +98,17 @@ void setup()
     dcComponent[j] = 0; 
   }
   
-  for(int i = 0; i<4000; i++)
+  for(int i = 0; i<4000+(BL-1)/2; i++)
   {
     for(int j = 0; j<NUMSENSORS + 1; j++)
     {
-      dcComponent[j] += analogRead(j); 
+      if(i>(BL-1)/2)
+        dcComponent[j] += fir[j].process(analogRead(j)); 
+      else
+      {
+        dcComponent[j] = fir[j].process(analogRead(j)); 
+        dcComponent[j]=0;
+      }
     }
   }
   
@@ -72,84 +120,55 @@ void setup()
       dcComponent[j] = pow(2, ADCRESOLUTION) - 1 - dcComponent[j];
   }
   
-  
-  // declare variables for coefficients
-  // these should be calculated by hand, or using a tool
-  // in case a phase linear filter is required, the coefficients are symmetric
-  // for time optimization it seems best to enter symmetric values like below
-  fir.setCoefficients(B);
-
-    //declare gain coefficient to scale the output back to normal
-  float gain = 1; // set to 1 and input unity to see what this needs to be
-  fir.setGain(gain);
-  
   // IntervalTimer setup
-  timer.begin(timerCallback, 500);
+  timerADC.begin(timerCallback, 40);
 }
 
 void loop()                     
 {
-  isADCReady = false;
-  // Initialization of variables
-  OSCBundle bndl;
-  uint64_t timetag[NUMSENSORS+1];
-  int adcValue[NUMSENSORS+1];
-  int32_t pressure[NUMSENSORS];
-  int32_t error;
-  
   
   if(isADCReady == true)
   {
-    for(int i = 0; i<NUMSENSORS+1; i++)
-    {
-      if(i!=0)
-        adcValue[i] = (int32_t) adcRead(i, &timetag[i]); //adcValue[i] = (int32_t) analogRead(i);
-      else
-        adcValue[0] = (int32_t) adcRead(0, &timetag[i]);
-    }
+    isADCReady = false;
+    
+    OSCBundle bndl;
+    uint16_t pressure[NUMSENSORS];
     
     // Calculation of the variable resistor
-    pressure[0] = (int32_t) ((float)(R*adcValue[1] - R*adcValue[0]) / (float)abs(adcValue[0] - dcComponent[0]));
+    pressure[0] = (uint16_t) ((float)(R*adcValue[1] - R*adcValue[0]) / (float)abs(adcValue[0] - dcComponent[0]));
+    if(pressure[0]>30000)
+      pressure[0] = 30000;
     
     if(pow(2, ADCRESOLUTION) - 1  - adcValue[0] - adcValue[1] + dcComponent[0] - dcComponent[1] <= 0)
-      pressure[1] = pow(2,32)-1;
+      pressure[1] = pow(2,16)-1;
     else
-      pressure[1] = (int32_t) ((float)(R*adcValue[1] - R*adcValue[2]) / (float)abs(pow(2, ADCRESOLUTION) - 1  - adcValue[0] - adcValue[1] + dcComponent[0] - dcComponent[1]));
-    
+      pressure[1] = (uint16_t) ((float)(R*adcValue[1] - R*adcValue[2]) / (float)abs(pow(2, ADCRESOLUTION) - 1  - adcValue[0] - adcValue[1] + dcComponent[0] - dcComponent[1]));
+    if(pressure[1]>30000)
+      pressure[1] = 30000;
+      
     if(pow(2, ADCRESOLUTION) - 1  - adcValue[3] - adcValue[4] + dcComponent[4] - dcComponent[3] <= 0)
-      pressure[2] = pow(2,32)-1;
+      pressure[2] = pow(2,16)-1;
     else
-       pressure[2] = (int32_t) ((float)(R*adcValue[3] - R*adcValue[2]) / (float)(pow(2, ADCRESOLUTION) - 1  - adcValue[3] - adcValue[4] + dcComponent[4] - dcComponent[3]));
-       
-    pressure[3] = (int32_t) ((float)(R*adcValue[3] - R*adcValue[4]) / (float)abs(adcValue[4] - dcComponent[4]));
+       pressure[2] = (uint16_t) ((float)(R*adcValue[3] - R*adcValue[2]) / (float)(pow(2, ADCRESOLUTION) - 1  - adcValue[3] - adcValue[4] + dcComponent[4] - dcComponent[3]));
+    if(pressure[2]>30000)
+      pressure[2] = 30000;
+      
+    pressure[3] = (uint16_t) ((float)(R*adcValue[3] - R*adcValue[4]) / (float)abs(adcValue[4] - dcComponent[4]));
+    if(pressure[3]>30000)
+      pressure[3] = 30000;
     
     
-    // Computer the error
-    // The following expression should be equal to zero if the calculation is correct
-    error = 2 * (pow(2, ADCRESOLUTION)-1) - adcValue[0] - adcValue[1] - adcValue[2] - adcValue[3] - adcValue[4] + dcComponent[0] + dcComponent[2] + dcComponent[4];
-     
-    for(int i = 0; i < NUMSENSORS; i++)
-    {
-      if(i!=0)
-      {
-        bndl.getOSCMessage("/i")->add(pressure[i]);
-      }
-      else
-      {
-        bndl.add("/i").add(pressure[i]);
-      }
-    }
     
-    // bndl.add("/s").add(analogRead(5));
-    bndl.add("/e").add(error);
-    bndl.add("/t").add(timetag[0]).add(timetag[4]);
-    
+    bndl.add("/i").add(pressure[0]).add(pressure[1]).add(pressure[2]).add(pressure[3]);
+    bndl.add("/adc").add(adcValue[0]).add(adcValue[1]).add(adcValue[2]).add(adcValue[3]).add(adcValue[4]);
+    bndl.add("/dc").add(dcComponent[0]).add(dcComponent[1]).add(dcComponent[2]).add(dcComponent[3]).add(dcComponent[4]);
+    bndl.add("/f").add(1000000/timetagSent);
     // Send the OSC Bundle through the Serial Port
     SLIPSerial.beginPacket();
-          bndl.send(SLIPSerial); // send the bytes to the SLIP stream
-      SLIPSerial.endPacket(); // mark the end of the OSC Packet
-      bndl.empty(); // empty the bundle to free room for a new one
-      
+    bndl.send(SLIPSerial); // send the bytes to the SLIP stream
+    SLIPSerial.endPacket(); // mark the end of the OSC Packet
+    bndl.empty(); // empty the bundle to free room for a new one
+
   }
   
 
