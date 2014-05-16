@@ -8,19 +8,19 @@
 
 
 #ifdef BOARD_HAS_USB_SERIAL
-#include <SLIPEncodedUSBSerial.h>
-SLIPEncodedUSBSerial SLIPSerial( thisBoardsSerialUSB );
+	#include <SLIPEncodedUSBSerial.h>
+	SLIPEncodedUSBSerial SLIPSerial( thisBoardsSerialUSB );
 #else
-#include <SLIPEncodedSerial.h>
- SLIPEncodedSerial SLIPSerial(Serial);
+	#include <SLIPEncodedSerial.h>
+	SLIPEncodedSerial SLIPSerial(Serial);
 #endif
 
 
 // Declaration of constants
 const int NUMSENSORS = 4;
 const int ADCRESOLUTION = 10;
-const int R = pow(2,7);
-long oldT;
+const int R = pow(2,7); // R is arbitrary and set to match the highest resolution of the sensor
+long timestamp;
 
 // Timer variables
 IntervalTimer timerADC;
@@ -28,12 +28,14 @@ IntervalTimer timerSerial;
 volatile boolean isADCReady = false;
 
 // Global variables
+uint16_t adcValue[NUMSENSORS+1];
 int dcComponent[NUMSENSORS + 1];
+uint16_t temp;
 int counter = 0;
 int adcSample = 0;
-int16_t timetagSent;
-uint16_t adcValue[NUMSENSORS+1];
-int16_t temp;
+uint16_t timetagSent;
+
+// Initialization of the FIR Filter Object
 FIR<BL> fir[NUMSENSORS + 1];
 
 // Interrupt timer function
@@ -56,8 +58,8 @@ void timerCallback() {
     
     if(counter == 0)
     {
-      timetagSent = micros() - oldT;
-      oldT = micros();
+      timetagSent = micros() - timestamp;
+      timestamp = micros();
       isADCReady = true;
     }
     
@@ -67,12 +69,13 @@ void timerCallback() {
 
 
 void setup()
-{                
+{
+                
   //begin SLIPSerial just like Serial
   SLIPSerial.begin(38400);   // set this as high as you can reliably run on your platform
   #if ARDUINO >= 100
-      while(!Serial)
-        ;   // Leonardo bug
+    while(!Serial)
+    ;   // Leonardo bug
   #endif
   
   // ADC Configuration
@@ -80,17 +83,18 @@ void setup()
   analogReadAveraging(1); // For smoothing the input --> 4 by default
   analogReference(DEFAULT);
   
-  //Filter
+  // Calibration of the ADC
+  analogRead(0);
   
+  // Filter parameters
   for(int i =0; i<NUMSENSORS+1;i++)
   {
     fir[i].setCoefficients(B);
-    fir[i].setGain(1024.0/1111.0);
+    fir[i].setGain(1024.0/943.0);
   }
   
   
-  // Calibration
-  analogRead(0);
+  
   
   // Get the DC Level
   for(int j = 0; j<NUMSENSORS + 1; j++)
